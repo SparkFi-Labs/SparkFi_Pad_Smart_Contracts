@@ -47,6 +47,8 @@ contract Pool is Context, ERC20, IPool, ReentrancyGuard, Pausable {
   event SwapRemote(address indexed to, uint256 indexed amount, uint256 indexed timestamp, uint256 sourceChainId, address sourcePoolId);
   event ChainPathCreated(uint256 indexed destinationChainId, address indexed destinationPoolId);
   event ChainCredited(uint256 indexed destinationChainId, address indexed destinationPoolId, uint256 newBalance);
+  event BalanceDepleted(uint256 indexed destinationChainId, address indexed destinationPoolId, uint256 amount);
+  event ChainCreditRemoved(uint256 indexed destinationChainId, address indexed destinationPoolId, uint256 amount);
   event ChainPathRemoved(uint256 indexed destinationChainId, address indexed destinationPoolId);
 
   constructor(
@@ -140,6 +142,7 @@ contract Pool is Context, ERC20, IPool, ReentrancyGuard, Pausable {
     reward = _amountSDtoLD(reward);
     require(reward > 0, "no reward");
     TransferHelpers._safeTransferERC20(address(poolToken), to, reward);
+    AVAILABLE_LP_PROVIDERS_REWARD = AVAILABLE_LP_PROVIDERS_REWARD.sub(reward);
     setLastRewardTime(to, block.timestamp);
   }
 
@@ -170,6 +173,29 @@ contract Pool is Context, ERC20, IPool, ReentrancyGuard, Pausable {
     chainObj.balance = chainObj.balance.add(newBalance);
     totalBalance = chainObj.balance;
     emit ChainCredited(destinationChainId, destinationPoolId, newBalance);
+  }
+
+  function removeCreditLocal(
+    uint256 sourceChainId,
+    address sourcePoolId,
+    address account,
+    uint256 amount
+  ) external nonReentrant onlyRouter returns (uint256) {
+    uint256 amountLD = _amountSDtoLD(amount);
+    TransferHelpers._safeTransferERC20(address(poolToken), account, amountLD);
+    emit BalanceDepleted(sourceChainId, sourcePoolId, amount);
+    return amountLD;
+  }
+
+  function removeCreditRemote(
+    uint256 destinationChainId,
+    address destinationPoolId,
+    uint256 amount
+  ) external nonReentrant onlyRouter returns (uint256) {
+    ChainObj storage chainObj = _getChainObj(destinationChainId, destinationPoolId);
+    chainObj.balance = chainObj.balance > amount ? chainObj.balance.sub(amount) : 0;
+    emit ChainCreditRemoved(destinationChainId, destinationPoolId, amount);
+    return amount;
   }
 
   function createChainPath(uint256 destinationChainId, address destinationPoolId)
