@@ -230,7 +230,7 @@ contract Pool is Context, ERC20, IPool, ReentrancyGuard, Pausable {
   }
 
   function setFeeLibrary(address _feeLibraryAddr) external onlyRouter {
-    require(_feeLibraryAddr != address(0x0), "fee library cant be 0x0");
+    require(_feeLibraryAddr != address(0x0), "fee library can't be 0x0");
     feeRewardLibrary = _feeLibraryAddr;
   }
 
