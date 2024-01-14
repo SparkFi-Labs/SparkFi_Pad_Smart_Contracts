@@ -37,6 +37,7 @@ contract Pool is Context, ERC20, IPool, ReentrancyGuard, Pausable {
     uint256 destinationChainId;
     address destinationPoolId;
     uint256 balance;
+    uint256 credits;
   }
 
   ChainObj[] chainObjs;
@@ -154,16 +155,16 @@ contract Pool is Context, ERC20, IPool, ReentrancyGuard, Pausable {
     return amount.div(convertRate());
   }
 
+  function _amountSDtoLD(uint256 amount) internal view returns (uint256) {
+    return amount.mul(convertRate());
+  }
+
   function setLastRewardTime(address account, uint256 time) public {
     require(_msgSender() == address(this) || _msgSender() == router, "only this contract or router");
     lastRewardTime[account] = time;
   }
 
-  function _amountSDtoLD(uint256 amount) internal view returns (uint256) {
-    return amount.mul(convertRate());
-  }
-
-  function credit(
+  function creditRemote(
     uint256 destinationChainId,
     address destinationPoolId,
     uint256 newBalance
@@ -210,7 +211,13 @@ contract Pool is Context, ERC20, IPool, ReentrancyGuard, Pausable {
       require(chainObj.destinationChainId != destinationChainId && chainObj.destinationPoolId != destinationPoolId, "chain object already created");
     }
 
-    ChainObj memory _chainObj = ChainObj({created: true, destinationChainId: destinationChainId, destinationPoolId: destinationPoolId, balance: 0});
+    ChainObj memory _chainObj = ChainObj({
+      created: true,
+      destinationChainId: destinationChainId,
+      destinationPoolId: destinationPoolId,
+      balance: 0,
+      credits: 0
+    });
 
     chainObjToIndex[destinationChainId][destinationPoolId] = chainObjs.length;
     chainObjs.push(_chainObj);
